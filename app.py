@@ -11,11 +11,15 @@ from data.pakistan import (
     DURATION,
 )
 from data.demo_data import DEMO_SCENARIO
-from agents.farm_context import build_farm_context
-from agents.weather import get_weather_context
-from agents.reasoning import generate_reasoning
-from agents.interventions import generate_interventions
-from agents.critic import generate_critic
+
+from agents.context_agent import run_context_agent
+from agents.weather_agent import run_weather_agent
+from agents.crop_agent import run_crop_agent
+from agents.intervention_agent import run_intervention_agent
+from agents.critic_agent import run_critic_agent
+from agents.cost_agent import run_cost_agent
+from agents.feasibility_agent import run_feasibility_agent
+
 from utils.calculations import (
     calculate_intervention_cost,
     calculate_expected_crop_loss,
@@ -24,7 +28,6 @@ from utils.calculations import (
 )
 from utils.evidence import EvidenceTracker
 from utils.report import generate_pdf_report
-
 
 # =========================================================
 # PAGE CONFIGURATION
