@@ -1,21 +1,100 @@
-def calculate_option_costs(farm, option_index, assumptions):
-    key = ["irrigation", "inspection", "monitor"][option_index]
-    a = assumptions[key]
-    acres = float(farm["farm_size"])
-    material = round(acres * a["material_per_acre"])
-    labor = round(acres * a["labor_per_acre"])
-    energy = round(acres * a["energy_per_acre"])
-    equipment = round(acres * a["equipment_per_acre"])
-    other = round(acres * a["other_per_acre"])
-    total = material + labor + energy + equipment + other
-    return {"material": material, "labor": labor, "energy": energy, "equipment": equipment, "other": other, "total": total, "label": "Demonstration estimate"}
+def calculate_intervention_cost(
+    material_unit_cost,
+    material_quantity,
+    labor_cost,
+    energy_cost,
+    other_cost,
+):
+    material = float(material_unit_cost) * float(material_quantity)
+    labor = float(labor_cost)
+    energy = float(energy_cost)
+    other = float(other_cost)
+
+    total = material + labor + energy + other
+
+    return {
+        "material": material,
+        "labor": labor,
+        "energy": energy,
+        "other": other,
+        "total": total,
+    }
 
 
-def economic_exposure(farm):
-    # Transparent demonstration assumptions; intentionally conservative and clearly labelled.
-    value_per_acre = {"Wheat": 120000, "Rice": 180000, "Maize": 140000, "Cotton": 170000, "Sugarcane": 220000, "Citrus": 300000, "Mango": 350000}.get(farm["crop"], 150000)
-    crop_value = farm["farm_size"] * value_per_acre
-    loss_probability = 0.30 if farm["problem"] in ["Water may be insufficient", "Leaves are wilting"] else 0.20
-    expected_yield_loss_fraction = 0.15
-    expected_loss = crop_value * loss_probability * expected_yield_loss_fraction
-    return {"crop_value": round(crop_value), "loss_probability": loss_probability, "yield_loss_fraction": expected_yield_loss_fraction, "expected_loss": round(expected_loss), "label": "Demonstration estimate"}
+def calculate_expected_crop_loss(
+    probability_of_loss,
+    expected_yield_loss,
+    crop_value,
+):
+    return (
+        float(probability_of_loss)
+        * float(expected_yield_loss)
+        * float(crop_value)
+    )
+
+
+def calculate_economic_exposure(
+    intervention_cost,
+    expected_crop_loss,
+):
+    return (
+        float(intervention_cost)
+        - float(expected_crop_loss)
+    )
+
+
+def calculate_feasibility(
+    budget,
+    total_cost,
+    water_availability,
+    labor_level="Moderate",
+):
+
+    budget = float(budget)
+    total_cost = float(total_cost)
+
+    if total_cost <= budget:
+        budget_status = "Within"
+    elif total_cost <= budget * 1.25:
+        budget_status = "Near"
+    else:
+        budget_status = "Above"
+
+    if water_availability == "Good":
+        water_status = "Suitable"
+    elif water_availability == "Limited":
+        water_status = "Constrained"
+    else:
+        water_status = "Unknown"
+
+    if labor_level == "Good":
+        labor_status = "Suitable"
+    elif labor_level == "Limited":
+        labor_status = "Constrained"
+    else:
+        labor_status = "Unknown"
+
+    constraints = 0
+
+    if budget_status == "Above":
+        constraints += 1
+
+    if water_status == "Constrained":
+        constraints += 1
+
+    if labor_status == "Constrained":
+        constraints += 1
+
+    if constraints == 0:
+        overall = "High"
+    elif constraints == 1:
+        overall = "Moderate"
+    else:
+        overall = "Limited"
+
+    return {
+        "budget": budget_status,
+        "water": water_status,
+        "labor": labor_status,
+        "overall": overall,
+    }
