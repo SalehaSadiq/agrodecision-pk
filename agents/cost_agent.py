@@ -1,5 +1,5 @@
 from utils.calculations import calculate_option_costs
-from data.demo_data import COST_ASSUMPTIONS
+from utils.calculations import economic_exposure
 
 
 def run_cost_agent(farm, interventions):
