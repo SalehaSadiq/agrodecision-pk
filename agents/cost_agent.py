@@ -1,6 +1,9 @@
 from utils.calculations import calculate_option_costs
 
 
+# Demonstration assumptions only.
+# These are not current market prices and must not be presented as
+# locally verified agricultural costs.
 COST_ASSUMPTIONS = {
     0: {
         "material_unit_cost": 0,
@@ -28,11 +31,16 @@ COST_ASSUMPTIONS = {
 
 def run_cost_agent(farm, interventions):
     """
-    Calculate costs for exactly three intervention alternatives.
+    Calculate numerical cost estimates for intervention alternatives.
 
-    These are demonstration estimates and should be replaced with
+    The values are demonstration assumptions for the hackathon MVP.
+    They are not current market prices and should be replaced with
     locally verified prices before real-world use.
     """
+
+    # The application expects exactly three alternatives.
+    if not isinstance(interventions, list) or len(interventions) != 3:
+        return []
 
     results = []
 
@@ -48,8 +56,8 @@ def run_cost_agent(farm, interventions):
                 **option,
                 "costs": costs,
                 "cost_note": (
-                    "Demo estimate — replace with local price "
-                    "information before real-world use."
+                    "Demonstration estimate based on fixed assumptions. "
+                    "Not a current local market price."
                 ),
             }
         )
