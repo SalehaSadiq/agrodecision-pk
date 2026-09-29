@@ -10,7 +10,7 @@ from data.pakistan import (
     AFFECTED_AREA,
     DURATION,
 )
-from data.demo import DEMO_SCENARIO
+from data.demo_data import DEMO_SCENARIO
 from agents.farm_context import build_farm_context
 from agents.weather import get_weather_context
 from agents.reasoning import generate_reasoning
