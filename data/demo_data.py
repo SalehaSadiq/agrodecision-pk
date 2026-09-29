@@ -6,5 +6,12 @@ DEMO_SCENARIO = {
     "budget": 50000.0,
     "problem": "The wheat crop appears to have insufficient water.",
     "main_symptom": "Possible wilting and reduced vigor",
+    "duration": "2–3 days",
+    "affected_area": "10–25%",
+    "severity": "Moderate",
+    "soil": "Loamy",
+    "water_source": "Canal",
+    "water": "Moderate",
     "water_availability": "Moderate",
+    "labor": "Moderate",
 }
