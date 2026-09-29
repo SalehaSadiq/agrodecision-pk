@@ -7,7 +7,11 @@ def calculate_intervention_cost(
 ):
     """
     Calculate intervention cost components using Python.
+
     All monetary values are in PKR.
+
+    These calculations are deterministic. The quality of the estimate
+    depends on the supplied cost assumptions.
     """
 
     material = float(material_unit_cost) * float(material_quantity)
@@ -32,10 +36,17 @@ def calculate_expected_crop_loss(
     crop_value,
 ):
     """
-    Expected Crop Loss =
-    Probability of loss × Expected yield loss × Crop value
+    Estimate expected crop loss.
 
-    This is an estimate for decision support, not a prediction.
+    Formula:
+        Probability of loss
+        × Expected yield loss
+        × Crop value
+
+    This is a decision-support estimate, not a prediction.
+
+    The function should only be used when the required values have
+    actually been collected or explicitly supplied as assumptions.
     """
 
     return (
@@ -50,10 +61,15 @@ def calculate_economic_exposure(
     expected_crop_loss,
 ):
     """
-    Economic Exposure =
-    Intervention Cost − Expected Crop Loss
+    Calculate a simple net economic comparison:
 
-    This is an AI-generated decision-support estimate.
+        Intervention cost − expected crop loss
+
+    This function is retained for future decision-support scenarios,
+    but the result should not be presented as a standard financial
+    measure or prediction.
+
+    Do not use this calculation with invented crop-loss assumptions.
     """
 
     return (
@@ -69,12 +85,16 @@ def calculate_feasibility(
     labor_level="Moderate",
 ):
     """
-    Calculate feasibility without ranking interventions.
+    Assess practical feasibility without ranking interventions.
+
+    Returns descriptive statuses rather than a numerical or ordinal
+    recommendation score.
     """
 
     budget = float(budget)
     total_cost = float(total_cost)
 
+    # Budget
     if total_cost <= budget:
         budget_status = "Within"
     elif total_cost <= budget * 1.25:
@@ -82,39 +102,39 @@ def calculate_feasibility(
     else:
         budget_status = "Above"
 
+    # Water
     if water_availability == "Good":
+        water_status = "Suitable"
+    elif water_availability == "Moderate":
         water_status = "Suitable"
     elif water_availability == "Limited":
         water_status = "Constrained"
-    elif water_availability == "Moderate":
-        water_status = "Suitable"
     else:
         water_status = "Unknown"
 
+    # Labor
     if labor_level in ("Good", "Moderate"):
         labor_status = "Suitable"
-    elif labor_level == "Limited":
+    elif labor_level in ("Low", "Limited"):
         labor_status = "Constrained"
     else:
         labor_status = "Unknown"
 
-    constraints = 0
-
-    if budget_status == "Above":
-        constraints += 1
-
-    if water_status == "Constrained":
-        constraints += 1
-
-    if labor_status == "Constrained":
-        constraints += 1
-
-    if constraints == 0:
-        overall = "High"
-    elif constraints == 1:
-        overall = "Moderate"
+    # Overall feasibility is descriptive, not a ranking.
+    if (
+        budget_status == "Above"
+        or water_status == "Constrained"
+        or labor_status == "Constrained"
+    ):
+        overall = "Constrained"
+    elif (
+        budget_status == "Near"
+        or water_status == "Unknown"
+        or labor_status == "Unknown"
+    ):
+        overall = "Conditionally feasible"
     else:
-        overall = "Limited"
+        overall = "Feasible"
 
     return {
         "budget": budget_status,
@@ -124,13 +144,22 @@ def calculate_feasibility(
     }
 
 
-def calculate_option_costs(farm, option_index, cost_assumptions):
+def calculate_option_costs(
+    farm,
+    option_index,
+    cost_assumptions,
+):
     """
     Calculate the cost of one intervention option.
 
-    All calculations are performed in Python.
+    All calculations are performed deterministically in Python.
+
     The supplied assumptions are demonstration assumptions unless
-    replaced by locally verified prices.
+    replaced with locally verified prices.
+
+    The farm argument is retained so that the function can later
+    incorporate farm-size-dependent calculations without changing
+    the agent interface.
     """
 
     assumptions = cost_assumptions.get(
@@ -139,11 +168,26 @@ def calculate_option_costs(farm, option_index, cost_assumptions):
     )
 
     return calculate_intervention_cost(
-        material_unit_cost=assumptions.get("material_unit_cost", 0),
-        material_quantity=assumptions.get("material_quantity", 0),
-        labor_cost=assumptions.get("labor_cost", 0),
-        energy_cost=assumptions.get("energy_cost", 0),
-        other_cost=assumptions.get("other_cost", 0),
+        material_unit_cost=assumptions.get(
+            "material_unit_cost",
+            0,
+        ),
+        material_quantity=assumptions.get(
+            "material_quantity",
+            0,
+        ),
+        labor_cost=assumptions.get(
+            "labor_cost",
+            0,
+        ),
+        energy_cost=assumptions.get(
+            "energy_cost",
+            0,
+        ),
+        other_cost=assumptions.get(
+            "other_cost",
+            0,
+        ),
     )
 
 
@@ -155,7 +199,10 @@ def economic_exposure_from_farm(
     crop_value=0.0,
 ):
     """
-    Convenience function for agents that need an economic estimate.
+    Convenience function for future economic analysis.
+
+    Expected crop loss and economic exposure are only meaningful when
+    the underlying assumptions are explicitly supplied.
 
     The result is an estimate for decision support, not a prediction.
     """
