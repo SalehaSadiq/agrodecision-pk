@@ -1,5 +1,4 @@
 from utils.llm import ask_llm_json
-from utils.calculations import calculate_economic_exposure
 
 
 def run_critic_agent(
@@ -11,32 +10,35 @@ def run_critic_agent(
     feasibility,
 ):
     """
-    Critic agent challenges assumptions and uncertainty.
-    It does not select an intervention.
+    Critic Agent.
+
+    Challenges assumptions, identifies missing information, and suggests
+    field verification steps.
+
+    It does not diagnose the crop and does not select, rank, or score
+    intervention alternatives.
     """
 
-    total_intervention_cost = sum(
-        float(
-            option.get("costs", {}).get("total", 0)
-        )
-        for option in options
-    )
+    # Calculate the combined displayed cost of the alternatives.
+    # This is NOT an expected farmer expenditure because the alternatives
+    # are mutually alternative choices.
+    alternative_costs = []
 
-    # No crop-loss probability/value is assumed here unless
-    # the application has actually collected those values.
-    # Therefore the default expected crop loss is zero.
-    expected_crop_loss = 0.0
+    for option in options:
+        try:
+            total = float(
+                option.get("costs", {}).get("total", 0) or 0
+            )
+        except (TypeError, ValueError):
+            total = 0.0
 
-    exposure = calculate_economic_exposure(
-        total_intervention_cost,
-        expected_crop_loss,
-    )
+        alternative_costs.append(total)
 
     fallback = {
         "key_uncertainty": (
-            "The reported symptoms have not been verified through "
-            "field inspection, and crop stage, soil moisture and "
-            "irrigation history remain incomplete."
+            "The reported symptoms have not been verified through field "
+            "inspection, and crop stage, soil moisture and recent irrigation "
+            "history remain incomplete."
         ),
         "missing_information": [
             "Crop growth stage",
@@ -56,39 +58,60 @@ def run_critic_agent(
             "persist or worsen",
         ],
         "confidence": "Moderate",
-        "economic_exposure": exposure,
+        "alternative_costs": alternative_costs,
+        "economic_note": (
+            "The displayed intervention costs are alternative estimates, "
+            "not a prediction of crop loss or total farmer expenditure."
+        ),
     }
 
     prompt = f"""
-You are a skeptical AI Critic for a Pakistani agriculture
-decision-support prototype.
+You are a skeptical AI Critic for AGRODECISION PK, a Pakistani
+agriculture decision-support prototype.
 
-Challenge the analysis without selecting or ranking an option.
+Your task is to challenge the analysis before the human makes a decision.
 
-Return JSON only with these keys:
-key_uncertainty
-missing_information
-alternative_explanation
-verify
-confidence
+Return valid JSON only with these keys:
+- key_uncertainty
+- missing_information
+- alternative_explanation
+- verify
+- confidence
 
-missing_information and verify must be arrays.
+Rules:
+- missing_information must be an array.
+- verify must be an array.
+- confidence must be one of: Low, Moderate, High.
+- Do not diagnose the crop.
+- Do not claim certainty.
+- Do not rank interventions.
+- Do not select a preferred intervention.
+- Identify important missing evidence.
+- Consider whether the weather evidence is sufficient.
+- Consider whether the biological hypotheses have enough field evidence.
+- Consider uncertainty in the cost estimates.
+- Identify potential unintended consequences where relevant.
+- Suggest practical field checks.
+- Do not invent observations, prices, crop losses, yields, probabilities,
+  or economic values.
 
-Do not diagnose.
-Do not claim certainty.
-Do not rank interventions.
+Farm:
+{farm}
 
-Farm={farm}
+Context:
+{context}
 
-Context={context}
+Weather:
+{weather}
 
-Weather={weather}
+Crop reasoning:
+{crop_reasoning}
 
-Crop reasoning={crop_reasoning}
+Options:
+{options}
 
-Options={options}
-
-Feasibility={feasibility}
+Feasibility:
+{feasibility}
 """
 
     out = ask_llm_json(prompt, fallback)
@@ -96,6 +119,33 @@ Feasibility={feasibility}
     if not isinstance(out, dict):
         return fallback
 
-    out["economic_exposure"] = exposure
+    required_keys = {
+        "key_uncertainty",
+        "missing_information",
+        "alternative_explanation",
+        "verify",
+        "confidence",
+    }
+
+    if not required_keys.issubset(out.keys()):
+        return fallback
+
+    if not isinstance(out.get("missing_information"), list):
+        return fallback
+
+    if not isinstance(out.get("verify"), list):
+        return fallback
+
+    if out.get("confidence") not in {"Low", "Moderate", "High"}:
+        return fallback
+
+    # Keep the numerical cost information deterministic and separate from
+    # the LLM's qualitative critique.
+    out["alternative_costs"] = alternative_costs
+
+    out["economic_note"] = (
+        "The displayed intervention costs are alternative estimates, "
+        "not a prediction of crop loss or total farmer expenditure."
+    )
 
     return out
