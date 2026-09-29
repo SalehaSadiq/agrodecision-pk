@@ -1,82 +1,126 @@
 from utils.llm import ask_llm_json
 
 
-def run_crop_agent(farm, context, weather):
+def run_intervention_agent(farm, context, weather, crop_reasoning):
     """
-    Crop & Biological Reasoning Agent.
+    Intervention Agent.
 
-    Produces three possible explanations as hypotheses, not a diagnosis.
-    The output is intentionally structured so that the human user can
-    compare alternatives and verify them in the field.
+    Generates exactly three non-ranked intervention alternatives.
+    Recommendations remain conditional on field verification and do not
+    constitute a confirmed diagnosis or chemical prescription.
     """
 
-    fallback = {
-        "summary": (
-            "The reported symptoms are compatible with more than one "
-            "explanation. The system therefore treats these as hypotheses "
-            "rather than a diagnosis."
-        ),
-        "possible_causes": [
-            {
-                "name": "Water stress or root-zone limitation",
-                "confidence": "Moderate",
-                "why": (
-                    "The reported water situation and symptoms can be "
-                    "consistent with inadequate water availability."
-                ),
-            },
-            {
-                "name": "Weather-related stress",
-                "confidence": "Low",
-                "why": (
-                    "Recent temperature, rainfall and atmospheric "
-                    "conditions can alter crop water demand."
-                ),
-            },
-            {
-                "name": "Pest, disease or nutrient-related stress",
-                "confidence": "Low",
-                "why": (
-                    "Similar visible symptoms can arise from biological "
-                    "or nutritional causes and require field verification."
-                ),
-            },
-        ],
-    }
+    fallback = [
+        {
+            "name": "Targeted irrigation check and adjustment",
+            "what_to_do": (
+                "Verify soil/root-zone moisture and, if the field is "
+                "genuinely dry, adjust irrigation to the crop's current "
+                "need rather than irrigating uniformly without verification."
+            ),
+            "why_it_may_help": (
+                "Addresses the reported water-risk hypothesis while using "
+                "verification before spending heavily."
+            ),
+            "resources": (
+                "Water access, basic field inspection, available labor."
+            ),
+            "timing": "As soon as practical after verification.",
+            "potential_benefit": (
+                "May reduce water-stress risk if insufficient water is confirmed."
+            ),
+            "risks": (
+                "Unnecessary irrigation can waste water or worsen waterlogging."
+            ),
+            "uncertainty": (
+                "Actual crop water need and soil moisture are unknown."
+            ),
+        },
+        {
+            "name": "Field inspection plus localized corrective action",
+            "what_to_do": (
+                "Inspect representative plants and soil, identify whether "
+                "symptoms are uniform or localized, then apply only the "
+                "locally justified corrective action."
+            ),
+            "why_it_may_help": (
+                "Separates water, pest, disease and nutrient hypotheses "
+                "before committing resources."
+            ),
+            "resources": (
+                "Labor and basic field inspection; local extension support "
+                "if available."
+            ),
+            "timing": "Within 24–48 hours where practical.",
+            "potential_benefit": (
+                "May reduce the chance of treating the wrong cause."
+            ),
+            "risks": "Requires time and may delay intervention.",
+            "uncertainty": (
+                "Cause is not confirmed without field evidence."
+            ),
+        },
+        {
+            "name": "Monitor and collect more information",
+            "what_to_do": (
+                "Record symptom distribution, inspect soil moisture, check "
+                "irrigation history and monitor the field before purchasing inputs."
+            ),
+            "why_it_may_help": (
+                "Creates evidence before spending money when the cause is uncertain."
+            ),
+            "resources": (
+                "Farmer/labor time and simple observations."
+            ),
+            "timing": (
+                "Monitor over the next 24–72 hours, depending on crop condition."
+            ),
+            "potential_benefit": (
+                "Can reduce unnecessary expenditure and improve later decisions."
+            ),
+            "risks": (
+                "Delay could be costly if severe stress is already developing."
+            ),
+            "uncertainty": (
+                "Outcome depends on symptom progression and field observations."
+            ),
+        },
+    ]
 
     prompt = f"""
-You are the Crop & Biological Reasoning Agent for AGRODECISION PK,
-a human-in-the-loop agricultural decision-support system for Pakistan.
+You are the Intervention Agent for AGRODECISION PK.
 
-Analyze the farm information, farm context, and available weather evidence.
+Generate exactly 3 practical intervention alternatives for the Pakistani
+farm described below.
 
-Return valid JSON only with exactly these keys:
-- "summary"
-- "possible_causes"
+Return valid JSON containing either:
+1. a JSON array of exactly 3 objects, OR
+2. an object with one key "options" containing an array of exactly 3 objects.
 
-"possible_causes" must contain exactly 3 objects.
-
-Each object must contain:
-- "name"
-- "confidence"
-- "why"
-
-The confidence value must be exactly one of:
-- "Low"
-- "Moderate"
-- "High"
+Each option must contain exactly these required fields:
+- name
+- what_to_do
+- why_it_may_help
+- resources
+- timing
+- potential_benefit
+- risks
+- uncertainty
 
 Important rules:
-- These are hypotheses, NOT diagnoses.
-- Do not claim that any cause is confirmed.
-- Do not prescribe a treatment here.
-- Use the available farmer-provided information and weather evidence.
-- Do not invent observations that were not provided.
-- Clearly reflect uncertainty.
-- Consider alternative explanations where appropriate.
-- Keep the reasoning practical for a farmer or agricultural advisor.
-- The three possibilities must be meaningfully different rather than three
-  versions of the same explanation.
+- Do NOT rank the options.
+- Do NOT identify a "best", "preferred", "optimal", or "recommended"
+  option.
+- Present them as alternatives for human comparison.
+- Do not claim that a biological cause is confirmed.
+- Keep actions conditional on appropriate verification.
+- Do not prescribe pesticides, fungicides, herbicides, fertilizers, or
+  other chemical treatments without adequate evidence.
+- If uncertainty is material, include a verification-first or
+  monitor-and-learn alternative.
+- Consider water availability, labor, farm size and budget.
+- Do not invent field observations.
+- Keep the alternatives practical for Pakistani farming conditions.
 
 Farm:
 {farm}
@@ -86,33 +130,35 @@ Farm Context:
 
 Weather:
 {weather}
+
+Crop & Biological Reasoning:
+{crop_reasoning}
 """
 
-    result = ask_llm_json(prompt, fallback)
+    out = ask_llm_json(prompt, fallback)
 
-    # Defensive validation for hackathon reliability.
-    if not isinstance(result, dict):
+    if isinstance(out, dict) and "options" in out:
+        out = out["options"]
+
+    if not isinstance(out, list) or len(out) != 3:
         return fallback
 
-    causes = result.get("possible_causes")
+    required_keys = {
+        "name",
+        "what_to_do",
+        "why_it_may_help",
+        "resources",
+        "timing",
+        "potential_benefit",
+        "risks",
+        "uncertainty",
+    }
 
-    if not isinstance(causes, list) or len(causes) != 3:
-        return fallback
-
-    required_keys = {"name", "confidence", "why"}
-    valid_confidence = {"Low", "Moderate", "High"}
-
-    for cause in causes:
-        if not isinstance(cause, dict):
+    for option in out:
+        if not isinstance(option, dict):
             return fallback
 
-        if not required_keys.issubset(cause.keys()):
+        if not required_keys.issubset(option.keys()):
             return fallback
 
-        if cause.get("confidence") not in valid_confidence:
-            return fallback
-
-    if not isinstance(result.get("summary"), str):
-        return fallback
-
-    return result
+    return out
