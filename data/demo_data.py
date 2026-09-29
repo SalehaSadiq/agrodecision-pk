@@ -14,4 +14,5 @@ DEMO_SCENARIO = {
     "water": "Moderate",
     "water_availability": "Moderate",
     "labor": "Moderate",
+    "coords": (31.5204, 74.3587),
 }
