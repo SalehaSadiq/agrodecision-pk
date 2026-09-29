@@ -4,26 +4,43 @@ import requests
 # Representative coordinates for districts used by the MVP.
 # These are only used to query public weather data.
 DISTRICT_COORDS = {
+    # Punjab
     "Lahore": (31.5204, 74.3587),
     "Faisalabad": (31.4504, 73.1350),
-    "Rawalpindi": (33.5651, 73.0169),
     "Multan": (30.1575, 71.5249),
-    "Bahawalpur": (29.3956, 71.6836),
+    "Rawalpindi": (33.5651, 73.0169),
     "Gujranwala": (32.1877, 74.1945),
     "Sargodha": (32.0836, 72.6711),
-    "Sialkot": (32.4945, 74.5229),
+    "Bahawalpur": (29.3956, 71.6836),
+    "Sahiwal": (30.6682, 73.1114),
     "Dera Ghazi Khan": (30.0561, 70.6348),
-    "Rahim Yar Khan": (28.4202, 70.2952),
+
+    # Sindh
     "Karachi": (24.8607, 67.0011),
     "Hyderabad": (25.3960, 68.3578),
     "Sukkur": (27.7052, 68.8574),
+    "Larkana": (27.5589, 68.2120),
+    "Nawabshah": (26.2442, 68.4100),
+    "Mirpur Khas": (25.5251, 69.0159),
+    "Thatta": (24.7475, 67.9235),
+
+    # Khyber Pakhtunkhwa
     "Peshawar": (34.0151, 71.5249),
     "Mardan": (34.1989, 72.0407),
+    "Swat": (35.2227, 72.4258),
     "Abbottabad": (34.1688, 73.2215),
-    "Quetta": (30.1798, 66.9750),
-    "Gwadar": (25.1264, 62.3225),
-}
+    "Kohat": (33.5869, 71.4414),
+    "Bannu": (32.9861, 70.6042),
+    "Dera Ismail Khan": (31.8327, 70.9024),
 
+    # Balochistan
+    "Quetta": (30.1798, 66.9750),
+    "Sibi": (29.5430, 67.8773),
+    "Ziarat": (30.3811, 67.7250),
+    "Khuzdar": (27.8000, 66.6167),
+    "Turbat": (26.0023, 63.0544),
+    "Chaman": (30.9177, 66.4599),
+}
 
 def get_district_coordinates(district):
     """
