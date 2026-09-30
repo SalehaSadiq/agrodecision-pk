@@ -1,413 +1,457 @@
-import json
-from pathlib import Path
-
 from utils.llm import ask_llm_json
 
-
-EVIDENCE_FILE = Path("data/evidence_sources.json")
-
-
-def _load_evidence():
-    """
-    Load verified agricultural evidence from the local evidence database.
-    """
-
-    if not EVIDENCE_FILE.exists():
-        return []
-
-    try:
-        with open(EVIDENCE_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-
-        if not isinstance(data, list):
-            return []
-
-        return data
-
-    except (json.JSONDecodeError, OSError):
-        return []
-
-
-def _extract_crop(farm):
-    """
-    Identify the crop from the farm information.
-    """
-
-    if not isinstance(farm, dict):
-        return ""
-
-    possible_keys = [
-        "crop",
-        "crop_name",
-        "crop type",
-        "crop_type",
-        "Crop",
-        "Crop Name",
-    ]
-
-    for key in possible_keys:
-        value = farm.get(key)
-
-        if value:
-            return str(value).strip()
-
-    return ""
-
-
-def _get_relevant_evidence(farm):
-    """
-    Select verified evidence relevant to the reported crop.
-
-    Crop-specific evidence and general evidence are included.
-    """
-
-    evidence = _load_evidence()
-
-    if not evidence:
-        return []
-
-    crop = _extract_crop(farm).lower()
-
-    relevant = []
-
-    for item in evidence:
-        if not isinstance(item, dict):
-            continue
-
-        evidence_crop = str(
-            item.get("crop", "")
-        ).strip().lower()
-
-        if not evidence_crop:
-            continue
-
-        if evidence_crop == "general":
-            relevant.append(item)
-
-        elif crop and evidence_crop == crop:
-            relevant.append(item)
-
-    return relevant
-
-
-def _format_evidence_for_prompt(evidence):
-    """
-    Convert verified evidence into a readable format for the LLM.
-
-    The model receives the actual evidence record and its ID.
-    """
-
-    if not evidence:
-        return "No verified external research evidence is currently available."
-
-    formatted = []
-
-    for item in evidence:
-        evidence_id = item.get("id", "UNKNOWN")
-        source_type = item.get("source_type", "")
-        title = item.get("title", "Untitled source")
-        authors = item.get("authors", "")
-        year = item.get("year", "")
-        journal = item.get("journal", "")
-        claim = item.get("claim", "")
-        evidence_strength = item.get(
-            "evidence_strength",
-            ""
-        )
-
-        formatted.append(
-            f"""
-Evidence ID: {evidence_id}
-Source type: {source_type}
-Citation: {authors} ({year})
-Title: {title}
-Journal: {journal}
-Supported claim: {claim}
-Evidence strength: {evidence_strength}
-""".strip()
-        )
-
-    return "\n\n".join(formatted)
-
-
 def _build_fallback():
-    """
-    Safe fallback alternatives used when the LLM response is invalid.
-    """
+"""
+Safe fallback alternatives used when the LLM response is invalid
+or when sufficient evidence is not available.
+"""
 
-    return [
-        {
-            "name": "Targeted irrigation check and adjustment",
-            "what_to_do": (
-                "Verify soil/root-zone moisture and, if the field is "
-                "genuinely dry, adjust irrigation to the crop's current "
-                "need rather than irrigating uniformly without verification."
-            ),
-            "why_it_may_help": (
-                "Addresses the reported water-risk hypothesis while using "
-                "verification before spending heavily."
-            ),
-            "resources": (
-                "Water access, basic field inspection, available labor."
-            ),
-            "timing": "As soon as practical after verification.",
-            "potential_benefit": (
-                "May reduce water-stress risk if insufficient water is confirmed."
-            ),
-            "risks": (
-                "Unnecessary irrigation can waste water or worsen waterlogging."
-            ),
-            "uncertainty": (
-                "Actual crop water need and soil moisture are unknown."
-            ),
-            "evidence_ids": [],
-        },
-        {
-            "name": "Field inspection plus localized corrective action",
-            "what_to_do": (
-                "Inspect representative plants and soil, identify whether "
-                "symptoms are uniform or localized, then apply only the "
-                "locally justified corrective action."
-            ),
-            "why_it_may_help": (
-                "Separates water, pest, disease and nutrient hypotheses "
-                "before committing resources."
-            ),
-            "resources": (
-                "Labor and basic field inspection; local extension support "
-                "if available."
-            ),
-            "timing": "Within 24–48 hours where practical.",
-            "potential_benefit": (
-                "May reduce the chance of treating the wrong cause."
-            ),
-            "risks": (
-                "Requires time and may delay intervention."
-            ),
-            "uncertainty": (
-                "Cause is not confirmed without field evidence."
-            ),
-            "evidence_ids": [],
-        },
-        {
-            "name": "Monitor and collect more information",
-            "what_to_do": (
-                "Record symptom distribution, inspect soil moisture, check "
-                "irrigation history and monitor the field before purchasing inputs."
-            ),
-            "why_it_may_help": (
-                "Creates evidence before spending money when the cause is uncertain."
-            ),
-            "resources": (
-                "Farmer/labor time and simple observations."
-            ),
-            "timing": (
-                "Monitor over the next 24–72 hours, depending on crop condition."
-            ),
-            "potential_benefit": (
-                "Can reduce unnecessary expenditure and improve later decisions."
-            ),
-            "risks": (
-                "Delay could be costly if severe stress is already developing."
-            ),
-            "uncertainty": (
-                "Outcome depends on symptom progression and field observations."
-            ),
-            "evidence_ids": [],
-        },
-    ]
+```
+return [
+    {
+        "name": "Verify the suspected field condition",
+        "what_to_do": (
+            "Inspect representative plants and the root-zone condition. "
+            "Check whether the reported symptoms are widespread or localized "
+            "and verify the relevant farm condition before applying an input."
+        ),
+        "why_it_may_help": (
+            "Field verification can help distinguish among possible causes "
+            "before resources are committed to a specific intervention."
+        ),
+        "resources": (
+            "Farmer or labor time, basic field inspection, and local "
+            "agricultural advice if available."
+        ),
+        "timing": "As soon as practical.",
+        "potential_benefit": (
+            "May reduce the risk of responding to the wrong underlying cause."
+        ),
+        "risks": (
+            "Inspection requires time, and delaying action may matter if "
+            "the crop is experiencing rapidly worsening stress."
+        ),
+        "uncertainty": (
+            "The underlying cause has not been confirmed from the available information."
+        ),
+        "evidence_ids": [],
+    },
+    {
+        "name": "Adjust management based on verified conditions",
+        "what_to_do": (
+            "After field verification, make a targeted management adjustment "
+            "that addresses the condition actually observed, while avoiding "
+            "unnecessary inputs."
+        ),
+        "why_it_may_help": (
+            "A targeted response can address a verified farm constraint "
+            "without assuming that the initial hypothesis is correct."
+        ),
+        "resources": (
+            "Available farm resources, labor, water or other inputs depending "
+            "on the verified condition."
+        ),
+        "timing": "After field verification.",
+        "potential_benefit": (
+            "May improve crop conditions when the suspected constraint is "
+            "confirmed."
+        ),
+        "risks": (
+            "An inappropriate adjustment may have little benefit or could "
+            "create additional stress."
+        ),
+        "uncertainty": (
+            "The appropriate management response depends on the field "
+            "condition and crop stage."
+        ),
+        "evidence_ids": [],
+    },
+    {
+        "name": "Monitor before committing additional resources",
+        "what_to_do": (
+            "Record symptom progression, affected area, soil or water "
+            "conditions and recent management actions. Monitor representative "
+            "plants before making a larger intervention where conditions allow."
+        ),
+        "why_it_may_help": (
+            "Additional observations can provide information for comparing "
+            "possible causes and deciding whether further intervention is justified."
+        ),
+        "resources": (
+            "Farmer or labor time and simple field observations."
+        ),
+        "timing": "Over the next 24–72 hours, depending on crop condition.",
+        "potential_benefit": (
+            "Can reduce unnecessary expenditure when the cause remains uncertain."
+        ),
+        "risks": (
+            "Monitoring without intervention may allow damage to progress "
+            "if severe stress is already present."
+        ),
+        "uncertainty": (
+            "The value of monitoring depends on how quickly the reported "
+            "condition is changing."
+        ),
+        "evidence_ids": [],
+    },
+]
+```
 
+def _format_research_evidence(evidence, evidence_analysis):
+"""
+Convert automatically retrieved research evidence and its assessment
+into a compact format for the intervention LLM.
+
+```
+The intervention agent is not allowed to create or modify citations.
+"""
+
+if not evidence:
+    return (
+        "No external research records were retrieved. "
+        "Do not invent or imply research citations."
+    )
+
+analysis_by_id = {}
+
+if isinstance(evidence_analysis, dict):
+    assessments = evidence_analysis.get("assessments", [])
+
+    if isinstance(assessments, list):
+        for assessment in assessments:
+            if not isinstance(assessment, dict):
+                continue
+
+            evidence_id = assessment.get("evidence_id")
+
+            if evidence_id:
+                analysis_by_id[str(evidence_id)] = assessment
+
+formatted = []
+
+for item in evidence:
+    if not isinstance(item, dict):
+        continue
+
+    evidence_id = str(item.get("id", "")).strip()
+
+    if not evidence_id:
+        continue
+
+    title = item.get("title", "Untitled research record")
+    authors = item.get("authors_text", item.get("authors", ""))
+    year = item.get("year", "")
+    journal = item.get("journal", "")
+    doi = item.get("doi", "")
+    url = item.get("url", "")
+    abstract = item.get("abstract", "")
+
+    assessment = analysis_by_id.get(evidence_id, {})
+
+    support_level = assessment.get(
+        "support_level",
+        item.get("support_level", "Unassessed"),
+    )
+
+    relevance = assessment.get(
+        "relevance",
+        item.get("relevance", ""),
+    )
+
+    why_relevant = assessment.get(
+        "why_relevant",
+        item.get("why_relevant", ""),
+    )
+
+    formatted.append(
+        f"""
+```
+
+Evidence ID: {evidence_id}
+Title: {title}
+Authors: {authors}
+Year: {year}
+Journal: {journal}
+DOI: {doi}
+Source URL: {url}
+Relevance: {relevance}
+Support level: {support_level}
+Why relevant: {why_relevant}
+Abstract: {abstract}
+""".strip()
+)
+
+```
+if not formatted:
+    return (
+        "No usable external research records were available. "
+        "Do not invent citations."
+    )
+
+return "\n\n".join(formatted)
+```
 
 def run_intervention_agent(
-    farm,
-    context,
-    weather,
-    crop_reasoning,
+farm,
+context,
+weather,
+crop_reasoning,
+evidence=None,
+evidence_analysis=None,
 ):
-    """
-    Intervention Agent.
+"""
+Intervention Agent.
 
-    Generates exactly three non-ranked intervention alternatives.
+```
+Generates exactly three practical, non-ranked intervention alternatives.
 
-    Evidence is supplied from the verified evidence database.
-    The model may only reference evidence IDs that actually exist
-    in that database.
+Research evidence is supplied dynamically at runtime. The agent may only
+reference evidence IDs that actually exist in that supplied evidence.
 
-    Recommendations remain conditional on field verification and
-    do not constitute a confirmed diagnosis or chemical prescription.
-    """
+The agent must not:
+- invent citations,
+- diagnose the crop with certainty,
+- rank alternatives,
+- invent field observations,
+- or prescribe unsupported chemical treatments.
+"""
 
-    fallback = _build_fallback()
+fallback = _build_fallback()
 
-    evidence = _get_relevant_evidence(farm)
-    evidence_text = _format_evidence_for_prompt(evidence)
+if not isinstance(evidence, list):
+    evidence = []
 
-    prompt = f"""
+evidence_text = _format_research_evidence(
+    evidence=evidence,
+    evidence_analysis=evidence_analysis,
+)
+
+valid_evidence_ids = {
+    str(item.get("id"))
+    for item in evidence
+    if isinstance(item, dict) and item.get("id")
+}
+
+prompt = f"""
+```
+
 You are the Intervention Agent for AGRODECISION PK.
 
-Generate exactly 3 practical intervention alternatives for the Pakistani
-farm described below.
+Your task is to generate exactly THREE practical intervention alternatives
+for the Pakistani farm described below.
+
+The system follows this principle:
+
+AI INVESTIGATES.
+AI COMPARES.
+HUMAN DECIDES.
+
+The alternatives must therefore be presented for human comparison.
+Do not select, rank, score, or recommend one alternative as the winner.
+
+RETURN FORMAT
 
 Return valid JSON containing either:
 
-1. a JSON array of exactly 3 objects
+1. A JSON array containing exactly 3 objects
 
 OR
 
-2. an object with one key "options" containing an array of exactly
-   3 objects.
+2. An object with one key "options" containing an array of exactly 3 objects.
 
-Each option must contain exactly these fields:
+Each option MUST contain exactly these fields:
 
-- name
-- what_to_do
-- why_it_may_help
-- resources
-- timing
-- potential_benefit
-- risks
-- uncertainty
-- evidence_ids
+* name
+* what_to_do
+* why_it_may_help
+* resources
+* timing
+* potential_benefit
+* risks
+* uncertainty
+* evidence_ids
 
-"evidence_ids" must be a list.
+"evidence_ids" MUST be a list.
 
-The list may be empty if no supplied evidence directly supports
-the option.
+EVIDENCE RULES
 
-Only use Evidence IDs that appear in the VERIFIED EVIDENCE section.
+Only use evidence IDs that appear in the AUTOMATICALLY RETRIEVED
+RESEARCH EVIDENCE section.
 
-IMPORTANT RULES:
+Do NOT create evidence IDs.
 
-1. Do NOT rank the options.
+Do NOT invent:
 
-2. Do NOT identify a "best", "preferred", "optimal", or "recommended"
-   option.
+* papers
+* authors
+* journals
+* years
+* DOIs
+* URLs
+* statistics
+* treatment effects
+* application rates
+* research findings
 
-3. Present all three as alternatives for human comparison.
+If no supplied evidence directly supports an intervention, use:
 
-4. Do not claim that a biological cause is confirmed.
+"evidence_ids": []
 
-5. Keep actions conditional on appropriate field verification.
+An evidence record being retrieved does NOT automatically mean that it
+supports the intervention. Use the supplied support assessment carefully.
 
-6. Do not invent scientific studies or citations.
+Do not make a stronger scientific claim than the supplied evidence supports.
 
-7. Do not invent authors, journals, years, DOI numbers, URLs,
-   treatment-effect statistics, application rates, or research findings.
+Research conducted in another:
 
-8. You may ONLY use research evidence supplied in the VERIFIED
-   EVIDENCE section.
+* country,
+* climate,
+* crop variety,
+* season,
+* production system,
+* soil type,
+* or experimental setting
 
-9. If the evidence does not support an intervention, use:
-   "evidence_ids": []
+does not guarantee the same result on this farm.
 
-10. Do not make a stronger claim than the supplied evidence supports.
+INTERVENTION RULES
 
-11. Research evidence from another location, crop variety, season,
-    or farming system does not guarantee the same outcome on this farm.
+1. Generate exactly three alternatives.
 
-12. Do not prescribe pesticides, fungicides, herbicides, fertilizers,
-    or other chemical treatments without adequate evidence and
-    appropriate verification.
+2. Do NOT rank the alternatives.
 
-13. If uncertainty is material, include a verification-first or
-    monitor-and-learn alternative.
+3. Do NOT call any alternative:
 
-14. Consider water availability, labor, farm size and budget.
+   * best
+   * preferred
+   * optimal
+   * most effective
+   * recommended
+   * first choice
 
-15. Do not invent field observations.
+4. Do not provide an overall winner.
 
-16. Keep alternatives practical for Pakistani farming conditions.
+5. Do not claim that a biological cause is confirmed.
 
-17. The human user remains responsible for the final farm decision.
+6. Keep interventions conditional on appropriate field verification.
 
-FARM:
+7. Do not invent field observations.
+
+8. Consider:
+
+   * crop
+   * crop stage if available
+   * reported symptoms
+   * affected area
+   * duration
+   * soil
+   * water availability
+   * weather
+   * farm size
+   * labor
+   * budget
+   * Pakistani farming conditions
+
+9. Do not prescribe pesticides, fungicides, herbicides, fertilizers,
+   growth regulators, or other chemical treatments unless the supplied
+   evidence and farm information provide adequate support.
+
+10. If a chemical or input-based intervention is discussed, keep it
+    conditional and advise appropriate local verification rather than
+    inventing a dose or application rate.
+
+11. At least one alternative should be verification-first or
+    monitoring-oriented when the cause remains materially uncertain.
+
+12. Explain uncertainty honestly.
+
+13. The human user remains responsible for the final farm decision.
+
+FARM INFORMATION
 {farm}
 
-FARM CONTEXT:
+AGRICULTURAL CONTEXT
 {context}
 
-WEATHER:
+WEATHER
 {weather}
 
-CROP & BIOLOGICAL REASONING:
+CROP AND BIOLOGICAL REASONING
 {crop_reasoning}
 
-VERIFIED EVIDENCE:
+AUTOMATICALLY RETRIEVED RESEARCH EVIDENCE
 {evidence_text}
 """
 
-    out = ask_llm_json(prompt, fallback)
+```
+out = ask_llm_json(prompt, fallback)
 
-    # ---------------------------------------------------------
-    # Normalize possible {"options": [...]} response
-    # ---------------------------------------------------------
+# ---------------------------------------------------------
+# Normalize {"options": [...]} responses
+# ---------------------------------------------------------
 
-    if isinstance(out, dict) and "options" in out:
-        out = out["options"]
+if isinstance(out, dict) and "options" in out:
+    out = out["options"]
 
-    # ---------------------------------------------------------
-    # Defensive validation
-    # ---------------------------------------------------------
+# ---------------------------------------------------------
+# Defensive validation
+# ---------------------------------------------------------
 
-    if not isinstance(out, list) or len(out) != 3:
+if not isinstance(out, list) or len(out) != 3:
+    return fallback
+
+required_keys = {
+    "name",
+    "what_to_do",
+    "why_it_may_help",
+    "resources",
+    "timing",
+    "potential_benefit",
+    "risks",
+    "uncertainty",
+    "evidence_ids",
+}
+
+text_fields = {
+    "name",
+    "what_to_do",
+    "why_it_may_help",
+    "resources",
+    "timing",
+    "potential_benefit",
+    "risks",
+    "uncertainty",
+}
+
+for option in out:
+
+    if not isinstance(option, dict):
         return fallback
 
-    required_keys = {
-        "name",
-        "what_to_do",
-        "why_it_may_help",
-        "resources",
-        "timing",
-        "potential_benefit",
-        "risks",
-        "uncertainty",
-        "evidence_ids",
-    }
+    if set(option.keys()) != required_keys:
+        return fallback
 
-    valid_evidence_ids = {
-        str(item.get("id"))
-        for item in evidence
-        if item.get("id")
-    }
-
-    for option in out:
-
-        if not isinstance(option, dict):
+    # All narrative fields must be strings.
+    for field in text_fields:
+        if not isinstance(option.get(field), str):
             return fallback
 
-        if set(option.keys()) != required_keys:
+    # Evidence IDs must be a list.
+    evidence_ids = option.get("evidence_ids")
+
+    if not isinstance(evidence_ids, list):
+        return fallback
+
+    # Prevent fabricated evidence IDs.
+    for evidence_id in evidence_ids:
+        if str(evidence_id) not in valid_evidence_ids:
             return fallback
 
-        # All main text fields must be strings.
-        text_fields = {
-            "name",
-            "what_to_do",
-            "why_it_may_help",
-            "resources",
-            "timing",
-            "potential_benefit",
-            "risks",
-            "uncertainty",
-        }
+    # Normalize IDs to strings.
+    option["evidence_ids"] = [
+        str(evidence_id)
+        for evidence_id in evidence_ids
+    ]
 
-        for field in text_fields:
-            if not isinstance(option.get(field), str):
-                return fallback
-
-        # Evidence IDs must be a list.
-        evidence_ids = option.get("evidence_ids")
-
-        if not isinstance(evidence_ids, list):
-            return fallback
-
-        # Prevent fabricated evidence IDs.
-        for evidence_id in evidence_ids:
-            if str(evidence_id) not in valid_evidence_ids:
-                return fallback
-
-        option["evidence_ids"] = [
-            str(evidence_id)
-            for evidence_id in evidence_ids
-        ]
-
-    return out
+return out
+```
