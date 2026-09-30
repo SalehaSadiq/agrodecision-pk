@@ -115,7 +115,10 @@ if not evidence:
 analysis_by_id = {}
 
 if isinstance(evidence_analysis, dict):
-    assessments = evidence_analysis.get("assessments", [])
+    assessments = evidence_analysis.get(
+    "evidence_assessments",
+    []
+)
 
     if isinstance(assessments, list):
         for assessment in assessments:
