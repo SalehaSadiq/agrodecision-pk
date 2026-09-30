@@ -1,175 +1,172 @@
 from utils.llm import ask_llm_json
 
-def _build_fallback():
-"""
-Safe fallback alternatives used when the LLM response is invalid
-or when sufficient evidence is not available.
-"""
 
-```
-return [
-    {
-        "name": "Verify the suspected field condition",
-        "what_to_do": (
-            "Inspect representative plants and the root-zone condition. "
-            "Check whether the reported symptoms are widespread or localized "
-            "and verify the relevant farm condition before applying an input."
-        ),
-        "why_it_may_help": (
-            "Field verification can help distinguish among possible causes "
-            "before resources are committed to a specific intervention."
-        ),
-        "resources": (
-            "Farmer or labor time, basic field inspection, and local "
-            "agricultural advice if available."
-        ),
-        "timing": "As soon as practical.",
-        "potential_benefit": (
-            "May reduce the risk of responding to the wrong underlying cause."
-        ),
-        "risks": (
-            "Inspection requires time, and delaying action may matter if "
-            "the crop is experiencing rapidly worsening stress."
-        ),
-        "uncertainty": (
-            "The underlying cause has not been confirmed from the available information."
-        ),
-        "evidence_ids": [],
-    },
-    {
-        "name": "Adjust management based on verified conditions",
-        "what_to_do": (
-            "After field verification, make a targeted management adjustment "
-            "that addresses the condition actually observed, while avoiding "
-            "unnecessary inputs."
-        ),
-        "why_it_may_help": (
-            "A targeted response can address a verified farm constraint "
-            "without assuming that the initial hypothesis is correct."
-        ),
-        "resources": (
-            "Available farm resources, labor, water or other inputs depending "
-            "on the verified condition."
-        ),
-        "timing": "After field verification.",
-        "potential_benefit": (
-            "May improve crop conditions when the suspected constraint is "
-            "confirmed."
-        ),
-        "risks": (
-            "An inappropriate adjustment may have little benefit or could "
-            "create additional stress."
-        ),
-        "uncertainty": (
-            "The appropriate management response depends on the field "
-            "condition and crop stage."
-        ),
-        "evidence_ids": [],
-    },
-    {
-        "name": "Monitor before committing additional resources",
-        "what_to_do": (
-            "Record symptom progression, affected area, soil or water "
-            "conditions and recent management actions. Monitor representative "
-            "plants before making a larger intervention where conditions allow."
-        ),
-        "why_it_may_help": (
-            "Additional observations can provide information for comparing "
-            "possible causes and deciding whether further intervention is justified."
-        ),
-        "resources": (
-            "Farmer or labor time and simple field observations."
-        ),
-        "timing": "Over the next 24–72 hours, depending on crop condition.",
-        "potential_benefit": (
-            "Can reduce unnecessary expenditure when the cause remains uncertain."
-        ),
-        "risks": (
-            "Monitoring without intervention may allow damage to progress "
-            "if severe stress is already present."
-        ),
-        "uncertainty": (
-            "The value of monitoring depends on how quickly the reported "
-            "condition is changing."
-        ),
-        "evidence_ids": [],
-    },
-]
-```
+def _build_fallback():
+    """
+    Safe fallback alternatives used when the LLM response is invalid
+    or when sufficient evidence is not available.
+    """
+
+    return [
+        {
+            "name": "Verify the suspected field condition",
+            "what_to_do": (
+                "Inspect representative plants and the root-zone condition. "
+                "Check whether the reported symptoms are widespread or localized "
+                "and verify the relevant farm condition before applying an input."
+            ),
+            "why_it_may_help": (
+                "Field verification can help distinguish among possible causes "
+                "before resources are committed to a specific intervention."
+            ),
+            "resources": (
+                "Farmer or labor time, basic field inspection, and local "
+                "agricultural advice if available."
+            ),
+            "timing": "As soon as practical.",
+            "potential_benefit": (
+                "May reduce the risk of responding to the wrong underlying cause."
+            ),
+            "risks": (
+                "Inspection requires time, and delaying action may matter if "
+                "the crop is experiencing rapidly worsening stress."
+            ),
+            "uncertainty": (
+                "The underlying cause has not been confirmed from the available information."
+            ),
+            "evidence_ids": [],
+        },
+        {
+            "name": "Adjust management based on verified conditions",
+            "what_to_do": (
+                "After field verification, make a targeted management adjustment "
+                "that addresses the condition actually observed, while avoiding "
+                "unnecessary inputs."
+            ),
+            "why_it_may_help": (
+                "A targeted response can address a verified farm constraint "
+                "without assuming that the initial hypothesis is correct."
+            ),
+            "resources": (
+                "Available farm resources, labor, water or other inputs depending "
+                "on the verified condition."
+            ),
+            "timing": "After field verification.",
+            "potential_benefit": (
+                "May improve crop conditions when the suspected constraint is "
+                "confirmed."
+            ),
+            "risks": (
+                "An inappropriate adjustment may have little benefit or could "
+                "create additional stress."
+            ),
+            "uncertainty": (
+                "The appropriate management response depends on the field "
+                "condition and crop stage."
+            ),
+            "evidence_ids": [],
+        },
+        {
+            "name": "Monitor before committing additional resources",
+            "what_to_do": (
+                "Record symptom progression, affected area, soil or water "
+                "conditions and recent management actions. Monitor representative "
+                "plants before making a larger intervention where conditions allow."
+            ),
+            "why_it_may_help": (
+                "Additional observations can provide information for comparing "
+                "possible causes and deciding whether further intervention is justified."
+            ),
+            "resources": (
+                "Farmer or labor time and simple field observations."
+            ),
+            "timing": "Over the next 24–72 hours, depending on crop condition.",
+            "potential_benefit": (
+                "Can reduce unnecessary expenditure when the cause remains uncertain."
+            ),
+            "risks": (
+                "Monitoring without intervention may allow damage to progress "
+                "if severe stress is already present."
+            ),
+            "uncertainty": (
+                "The value of monitoring depends on how quickly the reported "
+                "condition is changing."
+            ),
+            "evidence_ids": [],
+        },
+    ]
+
 
 def _format_research_evidence(evidence, evidence_analysis):
-"""
-Convert automatically retrieved research evidence and its assessment
-into a compact format for the intervention LLM.
+    """
+    Convert automatically retrieved research evidence and its assessment
+    into a compact format for the intervention LLM.
 
-```
-The intervention agent is not allowed to create or modify citations.
-"""
+    The intervention agent is not allowed to create or modify citations.
+    """
 
-if not evidence:
-    return (
-        "No external research records were retrieved. "
-        "Do not invent or imply research citations."
-    )
+    if not evidence:
+        return (
+            "No external research records were retrieved. "
+            "Do not invent or imply research citations."
+        )
 
-analysis_by_id = {}
+    analysis_by_id = {}
 
-if isinstance(evidence_analysis, dict):
-    assessments = evidence_analysis.get(
-    "evidence_assessments",
-    []
-)
+    if isinstance(evidence_analysis, dict):
+        assessments = evidence_analysis.get(
+            "evidence_assessments",
+            []
+        )
 
-    if isinstance(assessments, list):
-        for assessment in assessments:
-            if not isinstance(assessment, dict):
-                continue
+        if isinstance(assessments, list):
+            for assessment in assessments:
+                if not isinstance(assessment, dict):
+                    continue
 
-            evidence_id = assessment.get("evidence_id")
+                evidence_id = assessment.get("evidence_id")
 
-            if evidence_id:
-                analysis_by_id[str(evidence_id)] = assessment
+                if evidence_id:
+                    analysis_by_id[str(evidence_id)] = assessment
 
-formatted = []
+    formatted = []
 
-for item in evidence:
-    if not isinstance(item, dict):
-        continue
+    for item in evidence:
+        if not isinstance(item, dict):
+            continue
 
-    evidence_id = str(item.get("id", "")).strip()
+        evidence_id = str(item.get("id", "")).strip()
 
-    if not evidence_id:
-        continue
+        if not evidence_id:
+            continue
 
-    title = item.get("title", "Untitled research record")
-    authors = item.get("authors_text", item.get("authors", ""))
-    year = item.get("year", "")
-    journal = item.get("journal", "")
-    doi = item.get("doi", "")
-    url = item.get("url", "")
-    abstract = item.get("abstract", "")
+        title = item.get("title", "Untitled research record")
+        authors = item.get("authors_text", item.get("authors", ""))
+        year = item.get("year", "")
+        journal = item.get("journal", "")
+        doi = item.get("doi", "")
+        url = item.get("url", "")
+        abstract = item.get("abstract", "")
 
-    assessment = analysis_by_id.get(evidence_id, {})
+        assessment = analysis_by_id.get(evidence_id, {})
 
-    support_level = assessment.get(
-        "support_level",
-        item.get("support_level", "Unassessed"),
-    )
+        support_level = assessment.get(
+            "support_level",
+            item.get("support_level", "Unassessed"),
+        )
 
-    relevance = assessment.get(
-        "relevance",
-        item.get("relevance", ""),
-    )
+        relevance = assessment.get(
+            "relevance",
+            item.get("relevance", ""),
+        )
 
-    why_relevant = assessment.get(
-        "why_relevant",
-        item.get("why_relevant", ""),
-    )
+        why_relevant = assessment.get(
+            "why_relevant",
+            item.get("why_relevant", ""),
+        )
 
-    formatted.append(
-        f"""
-```
-
+        formatted.append(
+            f"""
 Evidence ID: {evidence_id}
 Title: {title}
 Authors: {authors}
@@ -182,62 +179,58 @@ Support level: {support_level}
 Why relevant: {why_relevant}
 Abstract: {abstract}
 """.strip()
-)
+        )
 
-```
-if not formatted:
-    return (
-        "No usable external research records were available. "
-        "Do not invent citations."
-    )
+    if not formatted:
+        return (
+            "No usable external research records were available. "
+            "Do not invent citations."
+        )
 
-return "\n\n".join(formatted)
-```
+    return "\n\n".join(formatted)
+
 
 def run_intervention_agent(
-farm,
-context,
-weather,
-crop_reasoning,
-evidence=None,
-evidence_analysis=None,
+    farm,
+    context,
+    weather,
+    crop_reasoning,
+    evidence=None,
+    evidence_analysis=None,
 ):
-"""
-Intervention Agent.
+    """
+    Intervention Agent.
 
-```
-Generates exactly three practical, non-ranked intervention alternatives.
+    Generates exactly three practical, non-ranked intervention alternatives.
 
-Research evidence is supplied dynamically at runtime. The agent may only
-reference evidence IDs that actually exist in that supplied evidence.
+    Research evidence is supplied dynamically at runtime. The agent may only
+    reference evidence IDs that actually exist in that supplied evidence.
 
-The agent must not:
-- invent citations,
-- diagnose the crop with certainty,
-- rank alternatives,
-- invent field observations,
-- or prescribe unsupported chemical treatments.
-"""
+    The agent must not:
+    - invent citations,
+    - diagnose the crop with certainty,
+    - rank alternatives,
+    - invent field observations,
+    - or prescribe unsupported chemical treatments.
+    """
 
-fallback = _build_fallback()
+    fallback = _build_fallback()
 
-if not isinstance(evidence, list):
-    evidence = []
+    if not isinstance(evidence, list):
+        evidence = []
 
-evidence_text = _format_research_evidence(
-    evidence=evidence,
-    evidence_analysis=evidence_analysis,
-)
+    evidence_text = _format_research_evidence(
+        evidence=evidence,
+        evidence_analysis=evidence_analysis,
+    )
 
-valid_evidence_ids = {
-    str(item.get("id"))
-    for item in evidence
-    if isinstance(item, dict) and item.get("id")
-}
+    valid_evidence_ids = {
+        str(item.get("id"))
+        for item in evidence
+        if isinstance(item, dict) and item.get("id")
+    }
 
-prompt = f"""
-```
-
+    prompt = f"""
 You are the Intervention Agent for AGRODECISION PK.
 
 Your task is to generate exactly THREE practical intervention alternatives
@@ -264,15 +257,15 @@ OR
 
 Each option MUST contain exactly these fields:
 
-* name
-* what_to_do
-* why_it_may_help
-* resources
-* timing
-* potential_benefit
-* risks
-* uncertainty
-* evidence_ids
+- name
+- what_to_do
+- why_it_may_help
+- resources
+- timing
+- potential_benefit
+- risks
+- uncertainty
+- evidence_ids
 
 "evidence_ids" MUST be a list.
 
@@ -285,16 +278,16 @@ Do NOT create evidence IDs.
 
 Do NOT invent:
 
-* papers
-* authors
-* journals
-* years
-* DOIs
-* URLs
-* statistics
-* treatment effects
-* application rates
-* research findings
+- papers
+- authors
+- journals
+- years
+- DOIs
+- URLs
+- statistics
+- treatment effects
+- application rates
+- research findings
 
 If no supplied evidence directly supports an intervention, use:
 
@@ -307,13 +300,13 @@ Do not make a stronger scientific claim than the supplied evidence supports.
 
 Research conducted in another:
 
-* country,
-* climate,
-* crop variety,
-* season,
-* production system,
-* soil type,
-* or experimental setting
+- country,
+- climate,
+- crop variety,
+- season,
+- production system,
+- soil type,
+- or experimental setting
 
 does not guarantee the same result on this farm.
 
@@ -325,12 +318,12 @@ INTERVENTION RULES
 
 3. Do NOT call any alternative:
 
-   * best
-   * preferred
-   * optimal
-   * most effective
-   * recommended
-   * first choice
+- best
+- preferred
+- optimal
+- most effective
+- recommended
+- first choice
 
 4. Do not provide an overall winner.
 
@@ -342,29 +335,29 @@ INTERVENTION RULES
 
 8. Consider:
 
-   * crop
-   * crop stage if available
-   * reported symptoms
-   * affected area
-   * duration
-   * soil
-   * water availability
-   * weather
-   * farm size
-   * labor
-   * budget
-   * Pakistani farming conditions
+- crop
+- crop stage if available
+- reported symptoms
+- affected area
+- duration
+- soil
+- water availability
+- weather
+- farm size
+- labor
+- budget
+- Pakistani farming conditions
 
 9. Do not prescribe pesticides, fungicides, herbicides, fertilizers,
-   growth regulators, or other chemical treatments unless the supplied
-   evidence and farm information provide adequate support.
+growth regulators, or other chemical treatments unless the supplied
+evidence and farm information provide adequate support.
 
 10. If a chemical or input-based intervention is discussed, keep it
-    conditional and advise appropriate local verification rather than
-    inventing a dose or application rate.
+conditional and advise appropriate local verification rather than
+inventing a dose or application rate.
 
 11. At least one alternative should be verification-first or
-    monitoring-oriented when the cause remains materially uncertain.
+monitoring-oriented when the cause remains materially uncertain.
 
 12. Explain uncertainty honestly.
 
@@ -386,75 +379,67 @@ AUTOMATICALLY RETRIEVED RESEARCH EVIDENCE
 {evidence_text}
 """
 
-```
-out = ask_llm_json(prompt, fallback)
+    out = ask_llm_json(prompt, fallback)
 
-# ---------------------------------------------------------
-# Normalize {"options": [...]} responses
-# ---------------------------------------------------------
+    # Normalize {"options": [...]} responses
+    if isinstance(out, dict) and "options" in out:
+        out = out["options"]
 
-if isinstance(out, dict) and "options" in out:
-    out = out["options"]
-
-# ---------------------------------------------------------
-# Defensive validation
-# ---------------------------------------------------------
-
-if not isinstance(out, list) or len(out) != 3:
-    return fallback
-
-required_keys = {
-    "name",
-    "what_to_do",
-    "why_it_may_help",
-    "resources",
-    "timing",
-    "potential_benefit",
-    "risks",
-    "uncertainty",
-    "evidence_ids",
-}
-
-text_fields = {
-    "name",
-    "what_to_do",
-    "why_it_may_help",
-    "resources",
-    "timing",
-    "potential_benefit",
-    "risks",
-    "uncertainty",
-}
-
-for option in out:
-
-    if not isinstance(option, dict):
+    # Defensive validation
+    if not isinstance(out, list) or len(out) != 3:
         return fallback
 
-    if set(option.keys()) != required_keys:
-        return fallback
+    required_keys = {
+        "name",
+        "what_to_do",
+        "why_it_may_help",
+        "resources",
+        "timing",
+        "potential_benefit",
+        "risks",
+        "uncertainty",
+        "evidence_ids",
+    }
 
-    # All narrative fields must be strings.
-    for field in text_fields:
-        if not isinstance(option.get(field), str):
+    text_fields = {
+        "name",
+        "what_to_do",
+        "why_it_may_help",
+        "resources",
+        "timing",
+        "potential_benefit",
+        "risks",
+        "uncertainty",
+    }
+
+    for option in out:
+
+        if not isinstance(option, dict):
             return fallback
 
-    # Evidence IDs must be a list.
-    evidence_ids = option.get("evidence_ids")
-
-    if not isinstance(evidence_ids, list):
-        return fallback
-
-    # Prevent fabricated evidence IDs.
-    for evidence_id in evidence_ids:
-        if str(evidence_id) not in valid_evidence_ids:
+        if set(option.keys()) != required_keys:
             return fallback
 
-    # Normalize IDs to strings.
-    option["evidence_ids"] = [
-        str(evidence_id)
-        for evidence_id in evidence_ids
-    ]
+        # All narrative fields must be strings.
+        for field in text_fields:
+            if not isinstance(option.get(field), str):
+                return fallback
 
-return out
-```
+        # Evidence IDs must be a list.
+        evidence_ids = option.get("evidence_ids")
+
+        if not isinstance(evidence_ids, list):
+            return fallback
+
+        # Prevent fabricated evidence IDs.
+        for evidence_id in evidence_ids:
+            if str(evidence_id) not in valid_evidence_ids:
+                return fallback
+
+        # Normalize IDs to strings.
+        option["evidence_ids"] = [
+            str(evidence_id)
+            for evidence_id in evidence_ids
+        ]
+
+    return out
