@@ -3,18 +3,19 @@
     "id": "E001",
     "crop": "tomato",
     "topic": "disease_risk",
-    "claim": "High humidity and prolonged leaf wetness can create conditions favorable for late blight development.",
+    "claim": "ACTUAL CLAIM SUPPORTED BY THE STUDY",
     "source_type": "research_study",
-    "source_name": "Verified journal source",
-    "title": "REAL STUDY TITLE",
-    "authors": "REAL AUTHORS",
+    "source_name": "Journal/Organization",
+    "title": "ACTUAL STUDY TITLE",
+    "authors": "ACTUAL AUTHORS",
     "year": 2024,
-    "journal": "REAL JOURNAL",
-    "doi": "https://doi.org/REAL-DOI",
-    "url": "https://doi.org/REAL-DOI",
+    "journal": "ACTUAL JOURNAL",
+    "doi": "ACTUAL DOI",
+    "url": "ACTUAL URL",
     "evidence_strength": "Moderate",
     "used_by": [
-      "crop_agent"
+      "crop_agent",
+      "intervention_agent"
     ]
   }
 ]
