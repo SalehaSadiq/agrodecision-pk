@@ -15,6 +15,7 @@ from data.demo_data import DEMO_SCENARIO
 from agents.context_agent import run_context_agent
 from agents.weather_agent import run_weather_agent
 from agents.crop_agent import run_crop_agent
+from agents.evidence_agent import run_evidence_agent
 from agents.intervention_agent import run_intervention_agent
 from agents.cost_agent import run_cost_agent
 from agents.feasibility_agent import run_feasibility_agent
@@ -22,6 +23,7 @@ from agents.critic_agent import run_critic_agent
 
 from utils.weather import get_district_coordinates
 from utils.evidence import EvidenceTracker
+from utils.evidence_search import search_for_farm
 from utils.report import generate_pdf_report
 
 
@@ -48,6 +50,8 @@ defaults = {
     "human_modification": "",
     "human_reasoning": "",
     "evidence": [],
+    "research_evidence": [],
+    "evidence_analysis": None,
     "analysis": None,
 }
 
@@ -68,6 +72,8 @@ def reset_analysis():
     st.session_state.human_reasoning = ""
     st.session_state.analysis = None
     st.session_state.evidence = []
+    st.session_state.research_evidence = []
+    st.session_state.evidence_analysis = None
 
 
 def load_demo_values():
@@ -577,6 +583,53 @@ if analyze:
             )
 
             # -------------------------------------------------
+            # 4. AUTOMATIC RESEARCH EVIDENCE
+            # -------------------------------------------------
+            
+            st.write(
+                "4. Automatic Research Evidence Search"
+            )
+            
+            research_evidence = search_for_farm(
+                farm=farm,
+                context=context,
+                weather=weather,
+                max_results=6,
+            )
+            
+            if research_evidence:
+            
+                st.write(
+                    f"Retrieved {len(research_evidence)} "
+                    "research records automatically."
+                )
+            
+            else:
+            
+                st.warning(
+                    "No external research records were retrieved. "
+                    "The system will not invent citations."
+                )
+            
+            
+            # -------------------------------------------------
+            # 5. EVIDENCE AGENT
+            # -------------------------------------------------
+            
+            st.write(
+                "5. Evidence Agent"
+            )
+            
+            evidence_analysis = run_evidence_agent(
+                farm=farm,
+                context=context,
+                weather=weather,
+                crop_reasoning=crop_reasoning,
+                evidence=research_evidence,
+            )
+            
+            
+            # -------------------------------------------------
             # 4. INTERVENTIONS
             # -------------------------------------------------
 
@@ -674,6 +727,8 @@ if analyze:
             "context": context,
             "weather": weather,
             "reasoning": crop_reasoning,
+            "research_evidence": research_evidence,
+            "evidence_analysis": evidence_analysis,
             "interventions": interventions,
             "feasibility": feasibility,
             "critic": critic,
@@ -685,6 +740,13 @@ if analyze:
 
         st.session_state.evidence = (
             evidence_tracker.items
+        )
+        st.session_state.research_evidence = (
+            research_evidence
+        )
+        
+        st.session_state.evidence_analysis = (
+            evidence_analysis
         )
 
         st.session_state.analysis_complete = True
@@ -716,6 +778,15 @@ if st.session_state.analysis_complete:
     farm = analysis["farm"]
     weather = analysis["weather"]
     reasoning = analysis["reasoning"]
+    research_evidence = analysis.get(
+    "research_evidence",
+        [],
+    )
+    
+    evidence_analysis = analysis.get(
+        "evidence_analysis",
+        {},
+    )
     interventions = analysis["interventions"]
     critic = analysis["critic"]
 
@@ -897,7 +968,154 @@ if st.session_state.analysis_complete:
                 f"{verification}"
             )
 
-
+    # =====================================================
+    # AUTOMATIC RESEARCH EVIDENCE
+    # =====================================================
+    
+    st.divider()
+    
+    st.header(
+        "📚 Automatically Retrieved Research Evidence"
+    )
+    
+    st.caption(
+        "These research records were retrieved automatically for "
+        "this case. They provide scientific context but do not "
+        "confirm a diagnosis on this farm."
+    )
+    
+    if research_evidence:
+    
+        for item in research_evidence:
+    
+            evidence_id = item.get(
+                "id",
+                "Evidence",
+            )
+    
+            title = item.get(
+                "title",
+                "Untitled publication",
+            )
+    
+            authors = item.get(
+                "authors_text",
+                "",
+            )
+    
+            year = item.get(
+                "year",
+                "",
+            )
+    
+            journal = item.get(
+                "journal",
+                "",
+            )
+    
+            doi = item.get(
+                "doi",
+                "",
+            )
+    
+            url = item.get(
+                "url",
+                "",
+            )
+    
+            relevance = item.get(
+                "relevance",
+                "Unassessed",
+            )
+    
+            support_level = item.get(
+                "support_level",
+                "Unassessed",
+            )
+    
+            why_relevant = item.get(
+                "why_relevant",
+                "",
+            )
+    
+            with st.expander(
+                f"{evidence_id} — {title}"
+            ):
+    
+                if authors:
+                    st.write(
+                        f"**Authors:** {authors}"
+                    )
+    
+                if year:
+                    st.write(
+                        f"**Year:** {year}"
+                    )
+    
+                if journal:
+                    st.write(
+                        f"**Journal:** {journal}"
+                    )
+    
+                st.write(
+                    f"**Relevance:** {relevance}"
+                )
+    
+                st.write(
+                    f"**Evidence relationship:** "
+                    f"{support_level}"
+                )
+    
+                if why_relevant:
+                    st.write(
+                        f"**Why it is relevant:** "
+                        f"{why_relevant}"
+                    )
+    
+                if doi:
+                    st.markdown(
+                        f"[Open DOI](https://doi.org/{doi})"
+                    )
+    
+                elif url:
+                    st.markdown(
+                        f"[Open publication source]({url})"
+                    )
+    
+                abstract = item.get(
+                    "abstract",
+                    "",
+                )
+    
+                if abstract:
+    
+                    with st.expander(
+                        "View abstract"
+                    ):
+                        st.write(
+                            abstract
+                        )
+    
+    else:
+    
+        st.info(
+            "No research publications were retrieved for this case. "
+            "No citations were generated artificially."
+        )
+    
+    if evidence_analysis:
+    
+        overall_note = evidence_analysis.get(
+            "overall_note",
+            "",
+        )
+    
+        if overall_note:
+    
+            st.info(
+                f"**Evidence interpretation:** "
+                f"{overall_note}"
+            )
     # =====================================================
     # FIELD VERIFICATION
     # =====================================================
